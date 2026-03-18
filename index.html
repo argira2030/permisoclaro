@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PermisoClaro v2 · App Permission Analyzer</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F7F5F0;
+    --surface: #FFFFFF;
+    --border: #E2DDD6;
+    --text: #1A1814;
+    --text-muted: #7A7570;
+    --accent: #2C5F2E;
+    --accent-light: #E8F0E8;
+    --warn: #C17D00;
+    --warn-light: #FFF8E6;
+    --danger: #B83232;
+    --danger-light: #FDEAEA;
+    --safe: #2C5F2E;
+    --safe-light: #E8F0E8;
+    --radius: 12px;
+    --shadow: 0 2px 12px rgba(0,0,0,0.06);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 0 0 60px 0;
+  }
+
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 28px 24px 24px;
+    text-align: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: var(--shadow);
+  }
+
+  header h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.8rem;
+    color: var(--text);
+    letter-spacing: -0.5px;
+  }
+
+  header h1 span {
+    color: var(--accent);
+  }
+
+  header p {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+    font-weight: 300;
+  }
+
+  .container {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 32px 20px 0;
+  }
+
+  .tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+    background: var(--border);
+    padding: 4px;
+    border-radius: var(--radius);
+  }
+
+  .tab {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    background: transparent;
+    border-radius: 9px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .tab.active {
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow);
+  }
+
+  .card label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 10px;
+  }
+
+  .card input[type="text"],
+  .card textarea {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+    color: var(--text);
+    background: var(--bg);
+    transition: border-color 0.2s;
+    outline: none;
+    resize: vertical;
+  }
+
+  .card input:focus,
+  .card textarea:focus {
+    border-color: var(--accent);
+    background: #fff;
+  }
+
+  .card textarea { min-height: 120px; }
+
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    padding: 32px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--bg);
+  }
+
+  .upload-zone:hover {
+    border-color: var(--accent);
+    background: var(--accent-light);
+  }
+
+  .upload-zone .icon { font-size: 2rem; margin-bottom: 8px; }
+  .upload-zone p { font-size: 0.85rem; color: var(--text-muted); }
+  .upload-zone input { display: none; }
+
+  .analyze-btn {
+    width: 100%;
+    padding: 15px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: var(--radius);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 8px;
+    letter-spacing: 0.02em;
+  }
+
+  .analyze-btn:hover { background: #1e4220; transform: translateY(-1px); }
+  .analyze-btn:active { transform: translateY(0); }
+
+  /* Results */
+  .verdict {
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .verdict.safe { background: var(--safe-light); border: 1.5px solid #b6d4b7; }
+  .verdict.warn { background: var(--warn-light); border: 1.5px solid #f0d080; }
+  .verdict.danger { background: var(--danger-light); border: 1.5px solid #f0aaaa; }
+
+  .verdict-icon { font-size: 2.2rem; flex-shrink: 0; }
+
+  .verdict-text h2 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.25rem;
+    margin-bottom: 4px;
+  }
+
+  .verdict.safe .verdict-text h2 { color: var(--safe); }
+  .verdict.warn .verdict-text h2 { color: var(--warn); }
+  .verdict.danger .verdict-text h2 { color: var(--danger); }
+
+  .verdict-text p { font-size: 0.85rem; color: var(--text-muted); }
+
+  .score-bar {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    margin-bottom: 16px;
+  }
+
+  .score-bar h3 {
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+  }
+
+  .bar-wrap {
+    background: var(--bg);
+    border-radius: 99px;
+    height: 10px;
+    overflow: hidden;
+    margin-bottom: 6px;
+  }
+
+  .bar-fill {
+    height: 100%;
+    border-radius: 99px;
+    transition: width 0.8s cubic-bezier(.4,0,.2,1);
+  }
+
+  .bar-fill.safe { background: var(--safe); }
+  .bar-fill.warn { background: var(--warn); }
+  .bar-fill.danger { background: var(--danger); }
+
+  .bar-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+
+  .permissions-list { margin-bottom: 16px; }
+
+  .perm-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .perm-item.ok { border-left: 3px solid var(--safe); }
+  .perm-item.suspicious { border-left: 3px solid var(--warn); }
+  .perm-item.dangerous { border-left: 3px solid var(--danger); }
+
+  .perm-icon { font-size: 1.1rem; margin-top: 1px; flex-shrink: 0; }
+
+  .perm-content { flex: 1; }
+
+  .perm-name {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 3px;
+  }
+
+  .perm-desc {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    line-height: 1.4;
+  }
+
+  .perm-badge {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 99px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .perm-badge.ok { background: var(--safe-light); color: var(--safe); }
+  .perm-badge.suspicious { background: var(--warn-light); color: var(--warn); }
+  .perm-badge.dangerous { background: var(--danger-light); color: var(--danger); }
+
+  .summary-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    margin-bottom: 16px;
+  }
+
+  .summary-box h3 {
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+  }
+
+  .summary-box p {
+    font-size: 0.88rem;
+    line-height: 1.6;
+    color: var(--text);
+  }
+
+  .hidden { display: none; }
+
+  .loader {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+  }
+
+  .loader .spin {
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    margin-bottom: 12px;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .reset-btn {
+    width: 100%;
+    padding: 12px;
+    background: transparent;
+    color: var(--text-muted);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.88rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 8px;
+  }
+
+  .reset-btn:hover { border-color: var(--text-muted); color: var(--text); }
+
+  footer {
+    text-align: center;
+    padding: 32px 20px 0;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+  }
+
+  footer a { color: var(--accent); text-decoration: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Permiso<span>Claro</span> <span style="font-family:'DM Mono',monospace;font-size:0.7rem;background:var(--accent-light);color:var(--accent);padding:3px 8px;border-radius:99px;vertical-align:middle;font-weight:600;">v2</span></h1>
+  <p>App Permission Transparency Analyzer · Analizador de Transparencia de Permisos</p>
+  <div id="ai-status-badge" style="display:inline-block;margin-top:8px;font-size:0.75rem;padding:4px 12px;border-radius:99px;background:var(--border);color:var(--text-muted);">⚡ Modo offline · Offline mode</div>
+</header>
+
+<div class="container">
+
+  <!-- AI Mode Card -->
+  <div class="card" style="margin-bottom:16px;border:1.5px solid var(--border);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <label style="margin:0;">🤖 Modo IA · AI Mode <span style="font-weight:300;font-size:0.75rem;">(opcional · optional)</span></label>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span id="ai-toggle-label" style="font-size:0.78rem;color:var(--text-muted);">OFF</span>
+        <div id="ai-toggle" onclick="toggleAI()" style="width:40px;height:22px;background:var(--border);border-radius:99px;cursor:pointer;position:relative;transition:background 0.2s;">
+          <div id="ai-toggle-knob" style="width:18px;height:18px;background:white;border-radius:50%;position:absolute;top:2px;left:2px;transition:left 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.2);"></div>
+        </div>
+      </div>
+    </div>
+    <div id="ai-key-section" style="display:none;">
+      <input type="password" id="api-key-input" placeholder="sk-ant-api..." style="width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;font-family:'DM Mono',monospace;font-size:0.82rem;background:var(--bg);outline:none;" oninput="checkAPIKey()">
+      <p style="font-size:0.75rem;color:var(--text-muted);margin-top:6px;">🔒 Tu API key no se guarda ni se envía a ningún servidor propio · Your API key is not stored or sent to any own server. <a href="https://console.anthropic.com" target="_blank" style="color:var(--accent);">Obtener key · Get key</a></p>
+      <div id="ai-ready-msg" style="display:none;margin-top:8px;font-size:0.78rem;color:var(--safe);font-weight:600;">✅ IA lista · AI ready — Claude analizará con búsqueda web en tiempo real</div>
+    </div>
+    <p style="font-size:0.78rem;color:var(--text-muted);margin-top:6px;" id="ai-desc">Sin API key: análisis offline con 50+ patrones. Con API key: Claude analiza permisos desconocidos y busca la reputación de la app en tiempo real.<br>Without API key: offline analysis. With API key: Claude analyzes unknown permissions and searches app reputation in real time.</p>
+  </div>
+
+  <div id="input-section">
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('text')">📋 Pegar texto / Paste text</button>
+      <button class="tab" onclick="switchTab('name')">🔍 Nombre de app / App name</button>
+      <button class="tab" onclick="switchTab('image')">📷 Captura / Screenshot</button>
+    </div>
+
+    <!-- Tab: Paste text -->
+    <div class="panel active" id="tab-text">
+      <div class="card">
+        <label>Pega los permisos aquí · Paste permissions here</label>
+        <textarea id="permissions-text" placeholder="Ej: ACCESS_FINE_LOCATION, READ_CONTACTS, CAMERA, READ_CALL_LOG, RECORD_AUDIO..."></textarea>
+      </div>
+      <button class="analyze-btn" onclick="analyze('text')">🔍 Analizar · Analyze</button>
+    </div>
+
+    <!-- Tab: App name -->
+    <div class="panel" id="tab-name">
+      <div class="card">
+        <label>Nombre de la aplicación · Application name</label>
+        <input type="text" id="app-name-input" placeholder="Ej: TikTok, WhatsApp, Flashlight Pro...">
+        <div style="margin-top:12px;">
+          <label>¿Para qué sirve la app? · What is the app for?</label>
+          <input type="text" id="app-purpose-input" placeholder="Ej: linterna, calculadora, editor de fotos...">
+        </div>
+        <div style="margin-top:12px;">
+          <label>Permisos que solicita · Permissions it requests</label>
+          <textarea id="app-name-permissions" placeholder="Ej: CAMERA, READ_CONTACTS, ACCESS_FINE_LOCATION..."></textarea>
+        </div>
+      </div>
+      <button class="analyze-btn" onclick="analyze('name')">🔍 Analizar · Analyze</button>
+    </div>
+
+    <!-- Tab: Screenshot -->
+    <div class="panel" id="tab-image">
+      <div class="card">
+        <label>Sube una captura de pantalla · Upload a screenshot</label>
+        <div class="upload-zone" onclick="document.getElementById('file-upload').click()">
+          <div class="icon">📷</div>
+          <p>Toca para subir · Tap to upload</p>
+          <p style="margin-top:4px; font-size:0.75rem;">PNG, JPG · Captura de permisos de la app</p>
+          <input type="file" id="file-upload" accept="image/*" onchange="handleImage(event)">
+        </div>
+        <div id="image-preview" class="hidden" style="margin-top:12px;">
+          <img id="preview-img" style="width:100%; border-radius:8px; border:1px solid var(--border);">
+          <div style="margin-top:12px;">
+            <label>Permisos detectados o escríbelos manualmente:</label>
+            <textarea id="image-permissions" placeholder="Escribe aquí los permisos visibles en la imagen..."></textarea>
+          </div>
+        </div>
+      </div>
+      <button class="analyze-btn" onclick="analyze('image')">🔍 Analizar · Analyze</button>
+    </div>
+  </div>
+
+  <!-- Loader -->
+  <div id="loader" class="loader hidden">
+    <div class="spin"></div>
+    <p>Analizando permisos… · Analyzing permissions…</p>
+  </div>
+
+  <!-- Results -->
+  <div id="results" class="hidden">
+    <div id="ai-analysis-box"></div>
+    <div id="verdict-box"></div>
+    <div id="score-section"></div>
+    <div id="summary-section"></div>
+    <div id="permissions-breakdown" class="permissions-list"></div>
+    <button class="reset-btn" onclick="reset()">← Analizar otra app · Analyze another app</button>
+  </div>
+
+</div>
+
+<footer>
+  <p>PermisoClaro v2 · Transparencia digital · Digital Transparency</p>
+  <p style="margin-top:4px;">Inspirado en <a href="https://argira-verifica.netlify.app/" target="_blank">Verifica.</a> · Argira Station · Jose Ranero García · 2026</p>
+  <p style="margin-top:4px;"><a href="https://doi.org/10.5281/zenodo.18929934" target="_blank">DOI: 10.5281/zenodo.18929934</a> · MIT License</p>
+</footer>
+
+<script>
+// Permission database
+const PERMISSIONS_DB = {
+  // CAMERA
+  'CAMERA': { es: 'Acceso a la cámara', en: 'Camera access', risk: 'medium', categories: ['photo','video','scanner','qr','videoconference','ar'] },
+  'RECORD_AUDIO': { es: 'Grabar audio / micrófono', en: 'Record audio / microphone', risk: 'high', categories: ['voice','music','call','video'] },
+  'ACCESS_FINE_LOCATION': { es: 'Ubicación exacta GPS', en: 'Precise GPS location', risk: 'high', categories: ['maps','weather','delivery','taxi','fitness'] },
+  'ACCESS_COARSE_LOCATION': { es: 'Ubicación aproximada', en: 'Approximate location', risk: 'medium', categories: ['maps','weather','local'] },
+  'ACCESS_BACKGROUND_LOCATION': { es: 'Ubicación en segundo plano (siempre)', en: 'Background location (always on)', risk: 'critical', categories: ['maps','taxi','fitness'] },
+  'READ_CONTACTS': { es: 'Leer tus contactos', en: 'Read your contacts', risk: 'high', categories: ['messaging','social','call','email'] },
+  'WRITE_CONTACTS': { es: 'Modificar tus contactos', en: 'Modify your contacts', risk: 'high', categories: ['messaging','social'] },
+  'READ_CALL_LOG': { es: 'Leer tu historial de llamadas', en: 'Read your call history', risk: 'critical', categories: ['call'] },
+  'WRITE_CALL_LOG': { es: 'Modificar historial de llamadas', en: 'Modify call history', risk: 'critical', categories: [] },
+  'PROCESS_OUTGOING_CALLS': { es: 'Interceptar llamadas salientes', en: 'Intercept outgoing calls', risk: 'critical', categories: ['call'] },
+  'READ_SMS': { es: 'Leer tus SMS', en: 'Read your SMS messages', risk: 'critical', categories: ['messaging'] },
+  'SEND_SMS': { es: 'Enviar SMS (puede tener coste)', en: 'Send SMS (may cost money)', risk: 'high', categories: ['messaging','2fa'] },
+  'RECEIVE_SMS': { es: 'Recibir y leer SMS', en: 'Receive and read SMS', risk: 'high', categories: ['messaging','2fa'] },
+  'READ_EXTERNAL_STORAGE': { es: 'Leer archivos de almacenamiento', en: 'Read files from storage', risk: 'medium', categories: ['photo','file','media'] },
+  'WRITE_EXTERNAL_STORAGE': { es: 'Escribir/borrar archivos', en: 'Write/delete files', risk: 'medium', categories: ['photo','file','media','download'] },
+  'MANAGE_EXTERNAL_STORAGE': { es: 'Acceso TOTAL al almacenamiento', en: 'FULL storage access', risk: 'critical', categories: ['filemanager'] },
+  'READ_MEDIA_IMAGES': { es: 'Leer imágenes de la galería', en: 'Read images from gallery', risk: 'medium', categories: ['photo','social','editor'] },
+  'READ_MEDIA_VIDEO': { es: 'Leer vídeos', en: 'Read videos', risk: 'medium', categories: ['video','social','editor'] },
+  'READ_MEDIA_AUDIO': { es: 'Leer archivos de audio', en: 'Read audio files', risk: 'medium', categories: ['music','audio','editor'] },
+  'INTERNET': { es: 'Acceso a internet', en: 'Internet access', risk: 'low', categories: [] },
+  'ACCESS_WIFI_STATE': { es: 'Ver estado de la red WiFi', en: 'View WiFi network state', risk: 'low', categories: [] },
+  'CHANGE_WIFI_STATE': { es: 'Activar/desactivar WiFi', en: 'Enable/disable WiFi', risk: 'medium', categories: ['network','iot'] },
+  'BLUETOOTH': { es: 'Acceso a Bluetooth', en: 'Bluetooth access', risk: 'medium', categories: ['iot','wearable','transfer'] },
+  'BLUETOOTH_CONNECT': { es: 'Conectarse a dispositivos Bluetooth', en: 'Connect to Bluetooth devices', risk: 'medium', categories: ['iot','wearable'] },
+  'BLUETOOTH_SCAN': { es: 'Escanear dispositivos Bluetooth', en: 'Scan Bluetooth devices', risk: 'medium', categories: ['iot','location'] },
+  'NFC': { es: 'Acceso a NFC (pagos, datos)', en: 'NFC access (payments, data)', risk: 'medium', categories: ['payment','transfer'] },
+  'USE_BIOMETRIC': { es: 'Usar huella / Face ID', en: 'Use fingerprint / Face ID', risk: 'medium', categories: ['security','banking'] },
+  'USE_FINGERPRINT': { es: 'Usar huella dactilar', en: 'Use fingerprint', risk: 'medium', categories: ['security','banking'] },
+  'BODY_SENSORS': { es: 'Sensores corporales (ritmo cardíaco...)', en: 'Body sensors (heart rate...)', risk: 'high', categories: ['health','fitness'] },
+  'ACTIVITY_RECOGNITION': { es: 'Reconocer tu actividad física', en: 'Recognize your physical activity', risk: 'medium', categories: ['fitness','health'] },
+  'GET_ACCOUNTS': { es: 'Ver cuentas de Google/email', en: 'View Google/email accounts', risk: 'high', categories: ['sync','social'] },
+  'PACKAGE_USAGE_STATS': { es: 'Ver qué apps usas y cuánto', en: 'See which apps you use and how much', risk: 'critical', categories: ['parental','security'] },
+  'SYSTEM_ALERT_WINDOW': { es: 'Mostrar sobre otras apps (overlay)', en: 'Display over other apps (overlay)', risk: 'high', categories: ['accessibility','floating'] },
+  'BIND_ACCESSIBILITY_SERVICE': { es: 'Servicio de accesibilidad (lee pantalla)', en: 'Accessibility service (reads screen)', risk: 'critical', categories: ['accessibility'] },
+  'DEVICE_ADMIN': { es: 'Administrador del dispositivo', en: 'Device administrator', risk: 'critical', categories: ['security','mdm'] },
+  'INSTALL_PACKAGES': { es: 'Instalar otras aplicaciones', en: 'Install other applications', risk: 'critical', categories: ['store','update'] },
+  'REQUEST_INSTALL_PACKAGES': { es: 'Solicitar instalar apps externas', en: 'Request installing external apps', risk: 'high', categories: ['store'] },
+  'RECEIVE_BOOT_COMPLETED': { es: 'Iniciarse al arrancar el móvil', en: 'Start on device boot', risk: 'medium', categories: ['messaging','alarm','service'] },
+  'WAKE_LOCK': { es: 'Impedir que el móvil entre en reposo', en: 'Keep device awake', risk: 'low', categories: ['media','download','service'] },
+  'VIBRATE': { es: 'Hacer vibrar el teléfono', en: 'Vibrate the phone', risk: 'low', categories: [] },
+  'FLASHLIGHT': { es: 'Acceso a la linterna', en: 'Flashlight access', risk: 'low', categories: ['flashlight'] },
+  'READ_PHONE_STATE': { es: 'Leer estado del teléfono (IMEI...)', en: 'Read phone state (IMEI...)', risk: 'high', categories: ['call','security'] },
+  'READ_PHONE_NUMBERS': { es: 'Leer tu número de teléfono', en: 'Read your phone number', risk: 'high', categories: ['call','messaging'] },
+  'CALL_PHONE': { es: 'Hacer llamadas directamente', en: 'Make phone calls directly', risk: 'high', categories: ['call','emergency'] },
+  'ANSWER_PHONE_CALLS': { es: 'Responder llamadas', en: 'Answer phone calls', risk: 'high', categories: ['call'] },
+  'USE_CREDENTIALS': { es: 'Usar credenciales de cuentas', en: 'Use account credentials', risk: 'high', categories: ['auth','sync'] },
+  'FOREGROUND_SERVICE': { es: 'Ejecutarse en primer plano', en: 'Run as foreground service', risk: 'low', categories: ['music','navigation','download'] },
+  'SCHEDULE_EXACT_ALARM': { es: 'Programar alarmas exactas', en: 'Schedule exact alarms', risk: 'low', categories: ['alarm','calendar','reminder'] },
+  'POST_NOTIFICATIONS': { es: 'Enviar notificaciones', en: 'Send notifications', risk: 'low', categories: [] },
+  'ACCESS_NETWORK_STATE': { es: 'Ver estado de la red', en: 'View network state', risk: 'low', categories: [] },
+};
+
+// Risk levels
+const RISK_LEVELS = {
+  low: { es: 'Normal', en: 'Normal', icon: '✅', color: 'ok' },
+  medium: { es: 'Moderado', en: 'Moderate', icon: '🔶', color: 'suspicious' },
+  high: { es: 'Alto', en: 'High', icon: '⚠️', color: 'suspicious' },
+  critical: { es: 'Crítico', en: 'Critical', icon: '🚨', color: 'dangerous' }
+};
+
+// App type purposes
+const APP_PURPOSES = {
+  'linterna': ['flashlight'],
+  'flashlight': ['flashlight'],
+  'calculadora': ['calc'],
+  'calculator': ['calc'],
+  'reloj': ['alarm'],
+  'clock': ['alarm'],
+  'alarma': ['alarm'],
+  'alarm': ['alarm'],
+  'brújula': ['sensor'],
+  'compass': ['sensor'],
+  'notas': ['notes'],
+  'notes': ['notes'],
+  'fotos': ['photo','editor'],
+  'photos': ['photo','editor'],
+  'camara': ['photo','video','scanner'],
+  'camera': ['photo','video','scanner'],
+  'mapas': ['maps','location'],
+  'maps': ['maps','location'],
+  'musica': ['music','audio'],
+  'music': ['music','audio'],
+  'mensajería': ['messaging','call'],
+  'messaging': ['messaging','call'],
+  'whatsapp': ['messaging','call','video'],
+  'telegram': ['messaging','call','video'],
+  'redes sociales': ['social','photo','video','messaging'],
+  'social': ['social','photo','video','messaging'],
+  'tiktok': ['social','photo','video'],
+  'instagram': ['social','photo','video'],
+  'banco': ['banking','security','payment'],
+  'banking': ['banking','security','payment'],
+  'fitness': ['fitness','health','location'],
+  'salud': ['health','fitness'],
+  'health': ['health','fitness'],
+  'juego': ['game'],
+  'game': ['game'],
+  'editor': ['photo','video','editor'],
+};
+
+// AI Mode
+let aiEnabled = false;
+
+function toggleAI() {
+  aiEnabled = !aiEnabled;
+  const toggle = document.getElementById('ai-toggle');
+  const knob = document.getElementById('ai-toggle-knob');
+  const label = document.getElementById('ai-toggle-label');
+  const keySection = document.getElementById('ai-key-section');
+  const badge = document.getElementById('ai-status-badge');
+
+  if (aiEnabled) {
+    toggle.style.background = 'var(--accent)';
+    knob.style.left = '20px';
+    label.textContent = 'ON';
+    keySection.style.display = 'block';
+    badge.style.background = 'var(--accent-light)';
+    badge.style.color = 'var(--accent)';
+    badge.textContent = '🤖 Modo IA activo · AI mode active';
+  } else {
+    toggle.style.background = 'var(--border)';
+    knob.style.left = '2px';
+    label.textContent = 'OFF';
+    keySection.style.display = 'none';
+    badge.style.background = 'var(--border)';
+    badge.style.color = 'var(--text-muted)';
+    badge.textContent = '⚡ Modo offline · Offline mode';
+    document.getElementById('ai-ready-msg').style.display = 'none';
+  }
+}
+
+function checkAPIKey() {
+  const key = document.getElementById('api-key-input').value;
+  const msg = document.getElementById('ai-ready-msg');
+  msg.style.display = key.startsWith('sk-ant-') ? 'block' : 'none';
+}
+
+async function analyzeWithAI(permissions, appName, appPurpose) {
+  const key = document.getElementById('api-key-input').value;
+  if (!key || !key.startsWith('sk-ant-')) return null;
+
+  const prompt = `Eres un experto en privacidad y seguridad de aplicaciones móviles. 
+Analiza los siguientes permisos de la app "${appName || 'desconocida'}" (función declarada: "${appPurpose || 'no especificada'}"):
+
+Permisos: ${permissions.join(', ')}
+
+Responde SOLO en JSON con esta estructura exacta:
+{
+  "app_reputation": "breve descripción de la reputación conocida de esta app en privacidad (1-2 frases)",
+  "overall_risk": "bajo|medio|alto|crítico",
+  "suspicious_permissions": ["lista de permisos sospechosos para esta función"],
+  "ai_verdict_es": "veredicto en español (2-3 frases)",
+  "ai_verdict_en": "verdict in English (2-3 sentences)",
+  "recommendation_es": "recomendación concreta en español",
+  "recommendation_en": "concrete recommendation in English"
+}`;
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    if (!response.ok) return null;
+    const data = await response.json();
+    const text = data.content.filter(b => b.type === 'text').map(b => b.text).join('');
+    const clean = text.replace(/```json|```/g, '').trim();
+    const start = clean.indexOf('{');
+    const end = clean.lastIndexOf('}');
+    if (start === -1 || end === -1) return null;
+    return JSON.parse(clean.slice(start, end + 1));
+  } catch(e) {
+    return null;
+  }
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    t.classList.toggle('active', ['text','name','image'][i] === tab);
+  });
+  document.querySelectorAll('.panel').forEach((p,i) => {
+    p.classList.toggle('active', ['text','name','image'][i] === tab);
+  });
+}
+
+function handleImage(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('preview-img').src = e.target.result;
+    document.getElementById('image-preview').classList.remove('hidden');
+  };
+  reader.readAsDataURL(file);
+}
+
+function parsePermissions(text) {
+  if (!text) return [];
+  // Split by common separators
+  const raw = text.toUpperCase()
+    .replace(/android\.permission\./gi, '')
+    .split(/[\n,;|\s]+/)
+    .map(p => p.trim().replace(/[^A-Z0-9_]/g, ''))
+    .filter(p => p.length > 2);
+  return [...new Set(raw)];
+}
+
+function analyze(mode) {
+  let permissions = [];
+  let appName = '';
+  let appPurpose = '';
+
+  if (mode === 'text') {
+    const text = document.getElementById('permissions-text').value;
+    if (!text.trim()) { alert('Por favor introduce los permisos · Please enter permissions'); return; }
+    permissions = parsePermissions(text);
+  } else if (mode === 'name') {
+    appName = document.getElementById('app-name-input').value;
+    appPurpose = document.getElementById('app-purpose-input').value.toLowerCase();
+    const text = document.getElementById('app-name-permissions').value;
+    if (!text.trim()) { alert('Por favor introduce los permisos de la app · Please enter app permissions'); return; }
+    permissions = parsePermissions(text);
+  } else if (mode === 'image') {
+    const text = document.getElementById('image-permissions').value;
+    if (!text.trim()) { alert('Por favor escribe los permisos visibles · Please write the visible permissions'); return; }
+    permissions = parsePermissions(text);
+  }
+
+  if (permissions.length === 0) {
+    alert('No se detectaron permisos reconocibles · No recognizable permissions detected');
+    return;
+  }
+
+  document.getElementById('input-section').classList.add('hidden');
+  document.getElementById('loader').classList.remove('hidden');
+
+  // Try AI if enabled
+  if (aiEnabled && document.getElementById('api-key-input').value.startsWith('sk-ant-')) {
+    document.querySelector('.loader p').textContent = '🤖 Consultando IA + búsqueda web… · Consulting AI + web search…';
+    analyzeWithAI(permissions, appName, appPurpose).then(aiResult => {
+      showResults(permissions, appName, appPurpose, aiResult);
+    }).catch(() => {
+      showResults(permissions, appName, appPurpose, null);
+    });
+  } else {
+    setTimeout(() => {
+      showResults(permissions, appName, appPurpose, null);
+    }, 900);
+  }
+}
+
+function showResults(permissions, appName, appPurpose, aiResult) {
+  document.getElementById('loader').classList.add('hidden');
+  document.getElementById('results').classList.remove('hidden');
+
+  // AI result box
+  if (aiResult) {
+    const riskColor = { bajo:'safe', medio:'warn', alto:'suspicious', crítico:'dangerous' }[aiResult.overall_risk] || 'warn';
+    document.getElementById('ai-analysis-box').innerHTML = `
+      <div class="card" style="border:1.5px solid var(--accent);margin-bottom:16px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+          <span style="font-size:1.2rem;">🤖</span>
+          <span style="font-size:0.78rem;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--accent);">Análisis IA · AI Analysis</span>
+          ${aiResult.app_reputation ? `<span style="font-size:0.7rem;color:var(--text-muted);margin-left:auto;">🔍 Con búsqueda web</span>` : ''}
+        </div>
+        ${aiResult.app_reputation ? `<p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:10px;font-style:italic;">${aiResult.app_reputation}</p>` : ''}
+        <p style="font-size:0.88rem;line-height:1.6;margin-bottom:8px;">${aiResult.ai_verdict_es}</p>
+        <p style="font-size:0.82rem;color:var(--text-muted);line-height:1.5;margin-bottom:10px;">${aiResult.ai_verdict_en}</p>
+        <div style="background:var(--bg);border-radius:8px;padding:12px;">
+          <p style="font-size:0.82rem;font-weight:600;margin-bottom:4px;">💡 ${aiResult.recommendation_es}</p>
+          <p style="font-size:0.78rem;color:var(--text-muted);">${aiResult.recommendation_en}</p>
+        </div>
+      </div>
+    `;
+  } else {
+    document.getElementById('ai-analysis-box').innerHTML = '';
+  }
+
+  // Get purpose categories
+  let purposeCategories = [];
+  if (appPurpose) {
+    for (const [key, cats] of Object.entries(APP_PURPOSES)) {
+      if (appPurpose.includes(key)) {
+        purposeCategories = [...purposeCategories, ...cats];
+      }
+    }
+  }
+
+  // Analyze each permission
+  let analyzed = [];
+  let unknownPerms = [];
+  let criticalCount = 0, highCount = 0, mediumCount = 0, lowCount = 0;
+
+  permissions.forEach(perm => {
+    const known = PERMISSIONS_DB[perm];
+    if (known) {
+      // Check if permission matches app purpose
+      let suspicious = false;
+      if (purposeCategories.length > 0) {
+        const matches = known.categories.some(c => purposeCategories.includes(c));
+        suspicious = !matches && known.risk !== 'low';
+      }
+
+      analyzed.push({ perm, ...known, suspicious });
+
+      if (known.risk === 'critical') criticalCount++;
+      else if (known.risk === 'high') highCount++;
+      else if (known.risk === 'medium') mediumCount++;
+      else lowCount++;
+    } else {
+      unknownPerms.push(perm);
+    }
+  });
+
+  // Calculate trust score
+  const score = Math.max(0, 100 - (criticalCount * 25) - (highCount * 12) - (mediumCount * 5));
+  const suspiciousCount = analyzed.filter(p => p.suspicious).length;
+
+  // Verdict
+  let verdictClass, verdictIcon, verdictTitleES, verdictTitleEN, verdictDescES, verdictDescEN;
+
+  if (criticalCount >= 2 || score < 40 || (suspiciousCount >= 3 && purposeCategories.length > 0)) {
+    verdictClass = 'danger';
+    verdictIcon = '⚠️';
+    verdictTitleES = '¡Cuidado! Esta app no parece fiable';
+    verdictTitleEN = 'Warning! This app does not seem trustworthy';
+    verdictDescES = 'Solicita permisos que van más allá de su función declarada. Revisa antes de instalar.';
+    verdictDescEN = 'It requests permissions beyond its stated function. Review before installing.';
+  } else if (criticalCount === 1 || score < 65 || (suspiciousCount >= 1 && purposeCategories.length > 0)) {
+    verdictClass = 'warn';
+    verdictIcon = '🔶';
+    verdictTitleES = 'Precaución — Algunos permisos son cuestionables';
+    verdictTitleEN = 'Caution — Some permissions are questionable';
+    verdictDescES = 'Hay permisos que merecen atención. Decide con información.';
+    verdictDescEN = 'Some permissions deserve attention. Decide with information.';
+  } else {
+    verdictClass = 'safe';
+    verdictIcon = '✅';
+    verdictTitleES = 'Permisos aparentemente razonables';
+    verdictTitleEN = 'Permissions appear reasonable';
+    verdictDescES = 'Los permisos detectados parecen acordes con la función de la app.';
+    verdictDescEN = 'Detected permissions seem in line with the app\'s function.';
+  }
+
+  // Build HTML
+  document.getElementById('verdict-box').innerHTML = `
+    <div class="verdict ${verdictClass}">
+      <div class="verdict-icon">${verdictIcon}</div>
+      <div class="verdict-text">
+        <h2>${verdictTitleES}<br><span style="font-size:0.9rem">${verdictTitleEN}</span></h2>
+        <p>${verdictDescES} · ${verdictDescEN}</p>
+        ${appName ? `<p style="margin-top:6px; font-weight:600;">App: ${appName}</p>` : ''}
+      </div>
+    </div>
+  `;
+
+  // Score bar
+  const barClass = score >= 65 ? 'safe' : score >= 40 ? 'warn' : 'danger';
+  document.getElementById('score-section').innerHTML = `
+    <div class="score-bar">
+      <h3>Índice de confianza · Trust Score</h3>
+      <div class="bar-wrap">
+        <div class="bar-fill ${barClass}" style="width:${score}%"></div>
+      </div>
+      <div class="bar-label">
+        <span>${score}/100</span>
+        <span>${criticalCount} críticos · ${highCount} altos · ${mediumCount} medios · ${lowCount} bajos</span>
+      </div>
+    </div>
+  `;
+
+  // Summary
+  let summaryText = '';
+  if (purposeCategories.length > 0 && suspiciousCount > 0) {
+    const suspiciousNames = analyzed.filter(p => p.suspicious).map(p => p.es).join(', ');
+    summaryText = `⚠️ Para una app de <strong>${appPurpose || 'uso indicado'}</strong>, los siguientes permisos no parecen necesarios: <strong>${suspiciousNames}</strong>. Esto puede indicar recolección de datos innecesaria.
+    <br><br>For a <strong>${appPurpose || 'stated use'}</strong> app, the following permissions do not seem necessary: <strong>${analyzed.filter(p=>p.suspicious).map(p=>p.en).join(', ')}</strong>.`;
+  } else if (analyzed.length > 0) {
+    summaryText = `Se analizaron <strong>${analyzed.length} permisos</strong>. ${criticalCount > 0 ? `<strong>${criticalCount} permiso(s) crítico(s)</strong> detectado(s) — requieren atención especial.` : 'No se detectaron permisos críticos.'}
+    <br><br><strong>${analyzed.length} permissions</strong> analyzed. ${criticalCount > 0 ? `<strong>${criticalCount} critical permission(s)</strong> detected — require special attention.` : 'No critical permissions detected.'}`;
+  }
+
+  document.getElementById('summary-section').innerHTML = summaryText ? `
+    <div class="summary-box">
+      <h3>Resumen · Summary</h3>
+      <p>${summaryText}</p>
+    </div>
+  ` : '';
+
+  // Permissions breakdown
+  let breakdownHTML = '<div style="font-size:0.78rem;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:12px;">Desglose de permisos · Permission breakdown</div>';
+
+  // Sort: critical first, then high, medium, low
+  const order = { critical: 0, high: 1, medium: 2, low: 3 };
+  analyzed.sort((a,b) => order[a.risk] - order[b.risk]);
+
+  analyzed.forEach(p => {
+    const rl = RISK_LEVELS[p.risk];
+    const suspicious = p.suspicious ? ' · <span style="color:var(--warn)">⚠️ No típico para esta app</span>' : '';
+    breakdownHTML += `
+      <div class="perm-item ${rl.color}">
+        <div class="perm-icon">${rl.icon}</div>
+        <div class="perm-content">
+          <div class="perm-name">${p.perm}</div>
+          <div class="perm-desc">${p.es} · ${p.en}${suspicious}</div>
+        </div>
+        <div class="perm-badge ${rl.color}">${rl.es}</div>
+      </div>
+    `;
+  });
+
+  if (unknownPerms.length > 0) {
+    breakdownHTML += `
+      <div class="perm-item" style="border-left:3px solid var(--border)">
+        <div class="perm-icon">❓</div>
+        <div class="perm-content">
+          <div class="perm-name">No reconocidos · Unrecognized</div>
+          <div class="perm-desc">${unknownPerms.join(', ')}</div>
+        </div>
+      </div>
+    `;
+  }
+
+  document.getElementById('permissions-breakdown').innerHTML = breakdownHTML;
+}
+
+function reset() {
+  document.getElementById('results').classList.add('hidden');
+  document.getElementById('input-section').classList.remove('hidden');
+  document.getElementById('permissions-text').value = '';
+  document.getElementById('app-name-input').value = '';
+  document.getElementById('app-purpose-input').value = '';
+  document.getElementById('app-name-permissions').value = '';
+  document.getElementById('image-permissions').value = '';
+  document.getElementById('image-preview').classList.add('hidden');
+  document.getElementById('ai-analysis-box').innerHTML = '';
+  document.getElementById('verdict-box').innerHTML = '';
+  document.getElementById('score-section').innerHTML = '';
+  document.getElementById('summary-section').innerHTML = '';
+  document.getElementById('permissions-breakdown').innerHTML = '';
+}
+</script>
+</body>
+</html>
